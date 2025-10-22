@@ -16,28 +16,27 @@ function createWindow() {
         minHeight: 500,
         x: width - 520,
         y: 20,
-        transparent: true, // ✅ KEEP - Transparent background
-        frame: false, // ✅ KEEP - No window frame
+        transparent: true,
+        frame: false,
         alwaysOnTop: true,
         skipTaskbar: true,
         resizable: true,
         show: false,
-        hasShadow: false, // ✅ KEEP - No shadow
-        backgroundColor: '#00000000', // ✅ ADD - Fully transparent hex color
+        hasShadow: false,
+        backgroundColor: '#00000000',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
-            backgroundThrottling: false, // ✅ ADD - Prevent throttling when hidden
+            backgroundThrottling: false,
             offscreen: false
         }
     });
     
     mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
     
-    // ✅ Wait for ready to show, then apply additional settings
+    // remove any white borders that sometimes appear
     mainWindow.webContents.on('did-finish-load', () => {
-        // Inject CSS to ensure no white borders
         mainWindow.webContents.insertCSS(`
             body {
                 margin: 0 !important;
@@ -48,7 +47,7 @@ function createWindow() {
         `);
     });
     
-    // Platform-specific screen capture exclusion
+    // mac stuff
     if (process.platform === 'darwin') {
         mainWindow.setWindowLevel('screen-saver');
         
@@ -59,10 +58,12 @@ function createWindow() {
         }
     }
     
+    // windows stuff
     if (process.platform === 'win32') {
         mainWindow.setSkipTaskbar(true);
         
         try {
+            // makes window invisible in screen recordings
             mainWindow.setContentProtection(true);
         } catch (e) {
             console.log('Content protection not available');
@@ -72,15 +73,10 @@ function createWindow() {
             if (mainWindow.setContentProtection) {
                 mainWindow.setContentProtection(true);
             }
-            
-            // ✅ Windows-specific: Remove any native borders
-            if (process.platform === 'win32') {
-                const { systemPreferences } = require('electron');
-                // Additional Windows transparency handling
-            }
         });
     }
     
+    // auto-hide when clicking away
     mainWindow.on('blur', () => {
         const settings = store.get('settings', {});
         if (settings.hideOnBlur !== false) {
@@ -123,6 +119,7 @@ function toggleWindow() {
 app.whenReady().then(() => {
     createWindow();
     
+    // ctrl+space to toggle
     const ret = globalShortcut.register('CommandOrControl+Space', () => {
         toggleWindow();
     });
@@ -131,10 +128,12 @@ app.whenReady().then(() => {
         console.log('Global shortcut registration failed');
     }
     
+    // alt+a also works
     globalShortcut.register('Alt+A', () => {
         toggleWindow();
     });
     
+    // quick actions
     globalShortcut.register('CommandOrControl+Shift+Q', () => {
         if (mainWindow) {
             showWindow();
@@ -153,7 +152,7 @@ app.on('will-quit', () => {
     globalShortcut.unregisterAll();
 });
 
-// IPC Handlers
+// handle messages from renderer
 ipcMain.handle('get-clipboard', () => {
     return clipboard.readText();
 });

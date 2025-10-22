@@ -1,23 +1,22 @@
 // Debug logging
-console.log('🚀 GhostAI renderer.js loading...');
+console.log('🚀 Voifodas renderer.js loading...');
 
 const API_URL = 'http://localhost:5000';
 let sessionId = Date.now().toString();
 let currentSettings = {};
 let isStreaming = false;
 
-// Test connection
+// test connection
 async function testConnection() {
     try {
         const response = await fetch(`${API_URL}/health`);
         const data = await response.json();
         console.log('✅ Server status:', data);
         
-        // Remove welcome message after connection
         setTimeout(() => {
             const welcome = document.querySelector('.welcome-message');
             if (welcome && document.querySelectorAll('.message').length === 0) {
-                // Keep welcome message if no chat yet
+                // keep welcome if no chat yet
             }
         }, 1000);
     } catch (error) {
@@ -26,7 +25,7 @@ async function testConnection() {
     }
 }
 
-// Initialize
+// init
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('📄 DOM loaded');
     
@@ -45,7 +44,7 @@ function setupEventListeners() {
     const sendBtn = document.getElementById('sendBtn');
     const messageInput = document.getElementById('messageInput');
     
-    // Send message
+    // send message
     sendBtn.addEventListener('click', () => sendMessage());
     
     messageInput.addEventListener('keydown', (e) => {
@@ -55,13 +54,13 @@ function setupEventListeners() {
         }
     });
 
-    // Auto-resize textarea
+    // auto-resize textarea
     messageInput.addEventListener('input', function() {
         this.style.height = 'auto';
         this.style.height = Math.min(this.scrollHeight, 120) + 'px';
     });
 
-    // Controls
+    // controls
     document.getElementById('closeBtn').addEventListener('click', () => {
         window.electronAPI.hideWindow();
     });
@@ -70,19 +69,19 @@ function setupEventListeners() {
     document.getElementById('settingsBtn').addEventListener('click', toggleSettings);
     document.getElementById('closeSettingsBtn').addEventListener('click', toggleSettings);
 
-    // Quick actions
+    // quick actions
     document.querySelectorAll('.quick-action-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             handleQuickAction(btn.dataset.action);
         });
     });
 
-    // Quick action shortcut
+    // quick action shortcut
     window.electronAPI.onQuickActionMode(() => {
         document.getElementById('quickActions').classList.toggle('hidden');
     });
 
-    // Settings
+    // settings
     document.getElementById('opacitySlider').addEventListener('input', (e) => {
         document.getElementById('opacityValue').textContent = e.target.value + '%';
     });
@@ -94,16 +93,16 @@ async function sendMessage() {
     
     if (!message || isStreaming) return;
     
-    // Remove welcome message
+    // remove welcome
     const welcome = document.querySelector('.welcome-message');
     if (welcome) welcome.remove();
     
-    // Add user message
+    // add user message
     addMessage('user', message);
     input.value = '';
     input.style.height = 'auto';
     
-    // Add loading
+    // add loading
     const loadingMsg = addLoadingMessage();
     isStreaming = true;
     
@@ -290,7 +289,7 @@ function applySettings() {
     }
 }
 
-// Auto-save settings when changed
+// auto-save when settings change
 document.addEventListener('change', (e) => {
     if (e.target.closest('.settings-content')) {
         saveSettings();

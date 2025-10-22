@@ -6,37 +6,39 @@ from groq import Groq
 from dotenv import load_dotenv
 import json
 
-# Set up logging
+# logging
 logging.basicConfig(level=logging.INFO, 
                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Load environment variables
 load_dotenv()
 
-# Get API key and validate
+# get api key
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    logger.error("GROQ_API_KEY environment variable is not set")
-    raise ValueError("GROQ_API_KEY environment variable is not set")
+    logger.error("GROQ_API_KEY not set")
+    raise ValueError("GROQ_API_KEY not set. Create a .env file with your API key.")
+
+if GROQ_API_KEY == "your_groq_api_key_here":
+    logger.error("Replace placeholder API key")
+    raise ValueError("Invalid API key. Update your .env file.")
 
 app = Flask(__name__)
-# Configure CORS for security - restrict to your frontend origin
 CORS(app, resources={r"/*": {"origins": ["http://localhost:*", "app://*"]}})
 
-# Initialize Groq client with error handling
+# init groq
 try:
     client = Groq(api_key=GROQ_API_KEY)
 except Exception as e:
-    logger.error(f"Failed to initialize Groq client: {e}")
+    logger.error(f"Failed to init Groq: {e}")
     raise
 
-# Store conversation history in memory
+# conversation history
 conversations = {}
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return {"status": "ok", "message": "GhostAI Server Running"}
+    return {"status": "ok", "message": "Voifodas Server Running"}
 
 @app.route('/chat/stream', methods=['POST'])
 def chat_stream():
@@ -51,21 +53,21 @@ def chat_stream():
             mimetype='text/event-stream'
         )
     
-    # Initialize conversation history
+    # init history
     if session_id not in conversations:
         conversations[session_id] = []
     
-    # Add user message to history
+    # add user message
     conversations[session_id].append({
         "role": "user",
         "content": user_message
     })
     
-    # Limit history to last 10 messages
+    # keep last 10 messages
     if len(conversations[session_id]) > 10:
         conversations[session_id] = conversations[session_id][-10:]
     
-    # System prompts based on personality
+    # system prompts
     system_prompts = {
         'concise': "You are a helpful AI assistant. Be concise and direct.",
         'casual': "You are a friendly AI assistant. Be casual and conversational.",
@@ -79,7 +81,7 @@ def chat_stream():
     
     def generate():
         try:
-            logger.info(f"Sending request to Groq API with session {session_id}")
+            logger.info(f"Request to Groq - session {session_id}")
             stream = client.chat.completions.create(
                 messages=messages,
                 model="llama-3.1-8b-instant",
@@ -96,7 +98,7 @@ def chat_stream():
                     full_response += content
                     yield f"data: {json.dumps({'content': content})}\n\n"
             
-            # Save assistant response
+            # save response
             conversations[session_id].append({
                 "role": "assistant",
                 "content": full_response
@@ -105,7 +107,7 @@ def chat_stream():
             yield f"data: {json.dumps({'done': True})}\n\n"
             
         except Exception as e:
-            logger.error(f"Error in chat stream: {str(e)}")
+            logger.error(f"Error in chat: {str(e)}")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
     
     return Response(
@@ -134,7 +136,7 @@ def quick_action():
     }
     
     try:
-        logger.info(f"Processing quick action: {action}")
+        logger.info(f"Quick action: {action}")
         completion = client.chat.completions.create(
             messages=[
                 {"role": "user", "content": prompts.get(action, prompts['summarize'])}
@@ -147,7 +149,7 @@ def quick_action():
         return {"response": completion.choices[0].message.content}
     
     except Exception as e:
-        logger.error(f"Error in quick action: {str(e)}")
+        logger.error(f"Quick action error: {str(e)}")
         return {"error": str(e)}, 500
 
 @app.route('/history/clear', methods=['POST'])
@@ -157,20 +159,18 @@ def clear_history():
     
     if session_id in conversations:
         conversations[session_id] = []
-        logger.info(f"Cleared history for session {session_id}")
+        logger.info(f"Cleared history for {session_id}")
     
     return {"status": "cleared"}
 
-# Session cleanup - add a route to clean old sessions
 @app.route('/maintenance/cleanup', methods=['POST'])
 def cleanup_sessions():
-    # This would be better with authentication
     count = len(conversations)
     conversations.clear()
-    logger.info(f"Cleaned up {count} conversation sessions")
+    logger.info(f"Cleaned up {count} sessions")
     return {"status": "cleaned", "count": count}
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    logger.info(f"Starting GhostAI server on port {port}")
+    logger.info(f"Starting Voifodas server on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)

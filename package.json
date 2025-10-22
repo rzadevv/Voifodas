@@ -1,7 +1,7 @@
 {
-    "name": "ghost-ai",
+    "name": "voifodas",
     "version": "1.0.0",
-    "description": "Invisible AI Assistant with Groq",
+    "description": "Invisible AI Assistant",
     "main": "main.js",
     "scripts": {
         "start": "electron .",
