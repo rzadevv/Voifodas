@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GhostAI</title>
+    <style>
+        /* ✅ ADD - Inline critical styles to prevent FOUC */
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            overflow: hidden !important;
+        }
+    </style>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <span class="logo-icon">👻</span>
+                <span class="logo-text">GhostAI</span>
+            </div>
+            <div class="header-controls">
+                <button class="control-btn" id="clearBtn" title="Clear Chat">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                </button>
+                <button class="control-btn" id="settingsBtn" title="Settings">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"/>
+                    </svg>
+                </button>
+                <button class="control-btn close-btn" id="closeBtn" title="Hide (Ctrl+Space)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="chat-wrapper">
+            <div class="chat-messages" id="chatContainer">
+                <!-- Welcome message -->
+                <div class="welcome-message">
+                    <div class="welcome-icon">👻</div>
+                    <h2>Welcome to GhostAI</h2>
+                    <p>Your invisible AI assistant</p>
+                    <div class="shortcuts">
+                        <div class="shortcut-item">
+                            <kbd>Ctrl</kbd> + <kbd>Space</kbd> Toggle
+                        </div>
+                        <div class="shortcut-item">
+                            <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd> Quick Actions
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions Bar (hidden by default) -->
+        <div class="quick-actions hidden" id="quickActions">
+            <button class="quick-action-btn" data-action="summarize">
+                <span class="action-icon">📝</span>
+                <span class="action-text">Summarize</span>
+            </button>
+            <button class="quick-action-btn" data-action="translate">
+                <span class="action-icon">🌐</span>
+                <span class="action-text">Translate</span>
+            </button>
+            <button class="quick-action-btn" data-action="explain">
+                <span class="action-icon">💡</span>
+                <span class="action-text">Explain</span>
+            </button>
+            <button class="quick-action-btn" data-action="code">
+                <span class="action-icon">💻</span>
+                <span class="action-text">Code Review</span>
+            </button>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-container">
+            <div class="input-box">
+                <textarea 
+                    id="messageInput" 
+                    placeholder="Ask anything... (Shift+Enter for new line)"
+                    rows="1"
+                ></textarea>
+                <button class="send-btn" id="sendBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div class="settings-panel hidden" id="settingsPanel">
+            <div class="settings-header">
+                <h3>Settings</h3>
+                <button class="control-btn" id="closeSettingsBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="settings-content">
+                <div class="setting-item">
+                    <label for="personalitySelect">AI Personality</label>
+                    <select id="personalitySelect">
+                        <option value="concise">Concise & Direct</option>
+                        <option value="casual">Casual & Friendly</option>
+                        <option value="formal">Formal & Professional</option>
+                        <option value="teacher">Patient Teacher</option>
+                    </select>
+                </div>
+
+                <div class="setting-item">
+                    <label for="opacitySlider">
+                        Window Opacity
+                        <span class="setting-value" id="opacityValue">95%</span>
+                    </label>
+                    <input type="range" id="opacitySlider" min="50" max="100" value="95">
+                </div>
+
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="hideOnBlurCheck" checked>
+                    <label for="hideOnBlurCheck">Hide window when focus is lost</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
