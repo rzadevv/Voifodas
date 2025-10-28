@@ -1,4 +1,15 @@
+# Voifodas Backend Dependencies
 groq==0.33.0
 flask==3.0.3
 flask-cors==5.0.0
 python-dotenv==1.0.1
+
+# Speech-to-Text dependencies (NEW)
+openai-whisper==20231117
+torch>=2.0.0
+torchaudio>=2.0.0
+
+# Note: FFmpeg must be installed as system dependency
+# Windows: choco install ffmpeg
+# macOS: brew install ffmpeg  
+# Linux: sudo apt install ffmpeg

@@ -1,4 +1,6 @@
-// Debug logging
+// ============================================
+// DEBUG AND CONFIGURATION
+// ============================================
 console.log('🚀 Voifodas renderer.js loading...');
 
 const API_URL = 'http://localhost:5000';
@@ -6,17 +8,34 @@ let sessionId = Date.now().toString();
 let currentSettings = {};
 let isStreaming = false;
 
-// test connection
+// ============================================
+// SPEECH-TO-TEXT STATE MANAGEMENT (NEW)
+// ============================================
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let audioStream = null;
+
+// ============================================
+// CONNECTION TEST
+// ============================================
 async function testConnection() {
     try {
         const response = await fetch(`${API_URL}/health`);
         const data = await response.json();
         console.log('✅ Server status:', data);
         
+        // Check if Whisper is available
+        if (data.whisper === 'available') {
+            console.log('🎤 Speech-to-text available');
+        } else {
+            console.warn('⚠️ Speech-to-text unavailable');
+        }
+        
         setTimeout(() => {
             const welcome = document.querySelector('.welcome-message');
             if (welcome && document.querySelectorAll('.message').length === 0) {
-                // keep welcome if no chat yet
+                // Keep welcome if no chat yet
             }
         }, 1000);
     } catch (error) {
@@ -25,7 +44,9 @@ async function testConnection() {
     }
 }
 
-// init
+// ============================================
+// INITIALIZATION
+// ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('📄 DOM loaded');
     
@@ -40,52 +61,274 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// ============================================
+// EVENT LISTENERS SETUP
+// ============================================
 function setupEventListeners() {
     const sendBtn = document.getElementById('sendBtn');
     const messageInput = document.getElementById('messageInput');
+    const micBtn = document.getElementById('micBtn'); // NEW
     
-    // send message
+    // Send message
     sendBtn.addEventListener('click', () => sendMessage());
-    
     messageInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
         }
     });
-
-    // auto-resize textarea
+    
+    // NEW: Microphone button click handler
+    micBtn.addEventListener('click', toggleRecording);
+    
+    // Auto-resize textarea
     messageInput.addEventListener('input', function() {
         this.style.height = 'auto';
         this.style.height = Math.min(this.scrollHeight, 120) + 'px';
     });
-
-    // controls
+    
+    // Controls
     document.getElementById('closeBtn').addEventListener('click', () => {
         window.electronAPI.hideWindow();
     });
-
+    
     document.getElementById('clearBtn').addEventListener('click', clearChat);
     document.getElementById('settingsBtn').addEventListener('click', toggleSettings);
     document.getElementById('closeSettingsBtn').addEventListener('click', toggleSettings);
-
-    // quick actions
+    
+    // Quick actions
     document.querySelectorAll('.quick-action-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             handleQuickAction(btn.dataset.action);
         });
     });
-
-    // quick action shortcut
+    
+    // Quick action shortcut
     window.electronAPI.onQuickActionMode(() => {
         document.getElementById('quickActions').classList.toggle('hidden');
     });
-
-    // settings
+    
+    // Settings
     document.getElementById('opacitySlider').addEventListener('input', (e) => {
         document.getElementById('opacityValue').textContent = e.target.value + '%';
     });
 }
+
+// ============================================
+// SPEECH-TO-TEXT FUNCTIONS (NEW)
+// ============================================
+
+/**
+ * Toggle audio recording on/off
+ */
+async function toggleRecording() {
+    if (isRecording) {
+        stopRecording();
+    } else {
+        await startRecording();
+    }
+}
+
+/**
+ * Start recording audio from microphone
+ */
+async function startRecording() {
+    try {
+        console.log('🎤 Requesting microphone access...');
+        
+        // Request microphone permission and get audio stream
+        audioStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: true 
+        });
+        
+        console.log('✅ Microphone access granted');
+        
+        // Create MediaRecorder with WebM format
+        const options = { mimeType: 'audio/webm' };
+        
+        // Fallback for browsers that don't support audio/webm
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            console.warn('audio/webm not supported, using default');
+            mediaRecorder = new MediaRecorder(audioStream);
+        } else {
+            mediaRecorder = new MediaRecorder(audioStream, options);
+        }
+        
+        // Reset audio chunks
+        audioChunks = [];
+        
+        // Collect audio data as it's recorded
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+                console.log('📦 Audio chunk collected:', event.data.size, 'bytes');
+            }
+        };
+        
+        // Handle recording stop event
+        mediaRecorder.onstop = async () => {
+            console.log('⏹️ Recording stopped, processing...');
+            await processRecording();
+        };
+        
+        // Handle errors
+        mediaRecorder.onerror = (event) => {
+            console.error('❌ MediaRecorder error:', event.error);
+            addMessage('assistant', '❌ Recording error: ' + event.error.message);
+            stopRecording();
+        };
+        
+        // Start recording
+        mediaRecorder.start();
+        isRecording = true;
+        
+        // Update UI to show recording state
+        updateRecordingUI(true);
+        
+        console.log('🔴 Recording started');
+        
+    } catch (error) {
+        console.error('❌ Microphone access error:', error);
+        
+        // Show user-friendly error message
+        let errorMessage = '❌ Cannot access microphone\n\n';
+        
+        if (error.name === 'NotAllowedError') {
+            errorMessage += 'Permission denied. Please allow microphone access in your browser settings.';
+        } else if (error.name === 'NotFoundError') {
+            errorMessage += 'No microphone found. Please connect a microphone and try again.';
+        } else {
+            errorMessage += 'Error: ' + error.message;
+        }
+        
+        addMessage('assistant', errorMessage);
+    }
+}
+
+/**
+ * Stop recording audio
+ */
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        console.log('⏹️ Stopping recording...');
+        mediaRecorder.stop();
+        isRecording = false;
+        
+        // Stop all audio tracks
+        if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Update UI to show non-recording state
+        updateRecordingUI(false);
+    }
+}
+
+/**
+ * Update UI to show recording state
+ */
+function updateRecordingUI(recording) {
+    const micBtn = document.getElementById('micBtn');
+    const micIcon = micBtn.querySelector('.mic-icon');
+    
+    if (recording) {
+        micBtn.classList.add('recording');
+        micIcon.textContent = '⏹️'; // Stop icon
+        micBtn.title = 'Stop recording';
+    } else {
+        micBtn.classList.remove('recording');
+        micIcon.textContent = '🎤'; // Microphone icon
+        micBtn.title = 'Start voice input';
+    }
+}
+
+/**
+ * Process recorded audio and send to backend for transcription
+ */
+async function processRecording() {
+    try {
+        // Create blob from recorded chunks
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        console.log('📦 Audio blob created:', audioBlob.size, 'bytes');
+        
+        if (audioBlob.size === 0) {
+            console.error('❌ Empty audio recording');
+            addMessage('assistant', '⚠️ Recording is empty. Please try again.');
+            return;
+        }
+        
+        // Show loading message
+        const loadingMsg = addLoadingMessage();
+        loadingMsg.querySelector('.message-content').textContent = '🎤 Transcribing audio...';
+        
+        // Create FormData to send audio file
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.webm');
+        
+        console.log('📤 Sending audio to server for transcription...');
+        
+        // Send to backend
+        const response = await fetch(`${API_URL}/transcribe`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        // Remove loading message
+        loadingMsg.remove();
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ Transcription received:', data);
+        
+        // Get transcribed text
+        const transcribedText = data.text;
+        
+        if (!transcribedText || transcribedText.trim() === '') {
+            addMessage('assistant', '⚠️ No speech detected. Please try again.');
+            return;
+        }
+        
+        // Populate the input field with transcribed text
+        const messageInput = document.getElementById('messageInput');
+        messageInput.value = transcribedText;
+        
+        // Auto-resize textarea
+        messageInput.style.height = 'auto';
+        messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+        
+        // Focus on input field
+        messageInput.focus();
+        
+        console.log('✅ Transcription complete:', transcribedText);
+        
+        // Optional: Show a temporary success message
+        showTranscriptionSuccess();
+        
+    } catch (error) {
+        console.error('❌ Transcription error:', error);
+        addMessage('assistant', `❌ Transcription failed: ${error.message}\n\nPlease make sure the Flask server is running with Whisper support.`);
+    }
+}
+
+/**
+ * Show temporary success indicator after transcription
+ */
+function showTranscriptionSuccess() {
+    const micBtn = document.getElementById('micBtn');
+    micBtn.classList.add('success');
+    
+    setTimeout(() => {
+        micBtn.classList.remove('success');
+    }, 1000);
+}
+
+// ============================================
+// CHAT FUNCTIONS
+// ============================================
 
 async function sendMessage() {
     const input = document.getElementById('messageInput');
@@ -93,23 +336,25 @@ async function sendMessage() {
     
     if (!message || isStreaming) return;
     
-    // remove welcome
+    // Remove welcome
     const welcome = document.querySelector('.welcome-message');
     if (welcome) welcome.remove();
     
-    // add user message
+    // Add user message
     addMessage('user', message);
     input.value = '';
     input.style.height = 'auto';
     
-    // add loading
+    // Add loading
     const loadingMsg = addLoadingMessage();
     isStreaming = true;
     
     try {
         const response = await fetch(`${API_URL}/chat/stream`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
                 message: message,
                 session_id: sessionId,
@@ -140,7 +385,6 @@ async function sendMessage() {
                 if (line.startsWith('data: ')) {
                     try {
                         const data = JSON.parse(line.slice(6));
-                        
                         if (data.error) {
                             contentDiv.textContent = `❌ ${data.error}`;
                         } else if (data.content) {
@@ -153,7 +397,6 @@ async function sendMessage() {
                 }
             }
         }
-        
     } catch (error) {
         console.error('❌ Error:', error);
         loadingMsg.remove();
@@ -166,6 +409,7 @@ async function sendMessage() {
 async function handleQuickAction(action) {
     try {
         const text = await window.electronAPI.getClipboard();
+        
         if (!text) {
             addMessage('assistant', '⚠️ Clipboard is empty');
             return;
@@ -179,7 +423,9 @@ async function handleQuickAction(action) {
         
         const response = await fetch(`${API_URL}/chat/quick`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({ action, text })
         });
         
@@ -196,8 +442,13 @@ async function handleQuickAction(action) {
     }
 }
 
+// ============================================
+// UI HELPER FUNCTIONS
+// ============================================
+
 function addMessage(sender, text) {
     const container = document.getElementById('chatContainer');
+    
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}-message`;
     
@@ -219,6 +470,7 @@ function addMessage(sender, text) {
 
 function addLoadingMessage() {
     const container = document.getElementById('chatContainer');
+    
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message assistant-message loading';
     
@@ -245,18 +497,24 @@ function scrollToBottom() {
 
 async function clearChat() {
     const container = document.getElementById('chatContainer');
-    container.innerHTML = '<div class="welcome-message"><div class="welcome-icon">👻</div><h2>Chat Cleared</h2><p>Start a new conversation</p></div>';
+    container.innerHTML = '<div class="welcome-message"><div class="welcome-icon">👻</div><h2>Voifodas</h2><p>Your invisible AI assistant</p><div class="shortcuts"><div class="shortcut-item"><kbd>Ctrl</kbd> + <kbd>Space</kbd> Toggle window</div><div class="shortcut-item"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd> Quick actions</div></div></div>';
     
     try {
         await fetch(`${API_URL}/history/clear`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({ session_id: sessionId })
         });
     } catch (error) {
         console.error('Clear error:', error);
     }
 }
+
+// ============================================
+// SETTINGS MANAGEMENT
+// ============================================
 
 function toggleSettings() {
     const panel = document.getElementById('settingsPanel');
@@ -289,7 +547,7 @@ function applySettings() {
     }
 }
 
-// auto-save when settings change
+// Auto-save when settings change
 document.addEventListener('change', (e) => {
     if (e.target.closest('.settings-content')) {
         saveSettings();
