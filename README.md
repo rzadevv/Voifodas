@@ -1,88 +1,90 @@
-# 👻 Ghost - AI Assistant Server
+# 👻 Ghost
 
-> A lightweight Flask-based AI assistant with speech-to-text capabilities, powered by Groq's LLM and OpenAI's Whisper.
+A Flask-based AI assistant server with local speech-to-text capabilities. Combines Groq's LLM with OpenAI's Whisper for privacy-focused audio transcription.
 
-## 🚧 Project Status
+## Project Status
 
-| Feature | Status |
-|---------|--------|
-| AI Chat Streaming | ✅ Complete |
-| Speech-to-Text | ✅ Complete |
-| Multiple Personalities | ✅ Complete |
-| Quick Actions | ✅ Complete |
-| Session Management | ✅ Complete |
-| GPU Acceleration | ✅ Complete |
-| Web Interface | 🚧 In Progress |
-| User Authentication | 📋 Planned |
-| Database Integration | 📋 Planned |
+- ✅ Streaming chat with Groq's Llama 3.1
+- ✅ Local speech transcription using Whisper
+- ✅ Multiple AI personalities (concise, casual, formal, teacher)
+- ✅ Quick actions (summarize, translate, explain, code analysis)
+- ✅ Session-based conversation management
+- ✅ GPU acceleration support
+- 🚧 Web interface in development
+- 📋 User authentication planned
+- 📋 Database integration under consideration
 
-## ✨ Features
+## Getting Started
 
-- 🤖 **AI Chat** - Streaming responses with Groq's Llama 3.1
-- 🎤 **Speech-to-Text** - Local Whisper transcription
-- 🎭 **Personalities** - Concise, casual, formal, or teacher modes
-- ⚡ **Quick Actions** - Summarize, translate, explain, analyze code
-- 💾 **Sessions** - Maintains conversation history
-- 🚀 **GPU Support** - Auto CUDA acceleration
-
-## 🚀 Quick Start
+Prerequisites: Python 3.8+ and a Groq API key from [console.groq.com](https://console.groq.com/).
 
 ```bash
 # Install dependencies
 pip install flask flask-cors groq python-dotenv openai-whisper torch
 
-# Configure .env
-GROQ_API_KEY=your_key_here
+# Configure environment (.env file)
+GROQ_API_KEY=your_actual_key_here
 PORT=5000
 
-# Run server
+# Run the server
 python server.py
 ```
 
-Get your Groq API key at [console.groq.com](https://console.groq.com/)
+Server will be available at `http://localhost:5000`.
 
-## 📡 API Endpoints
+## API Endpoints
 
-### Chat Stream
+### Streaming Chat
+
 ```http
 POST /chat/stream
 {
-  "message": "Hello!",
+  "message": "Explain quantum computing",
   "session_id": "user123",
-  "personality": "casual"  // concise|casual|formal|teacher
+  "personality": "teacher"
 }
 ```
 
-### Transcribe Audio
+Available personalities: `concise`, `casual`, `formal`, `teacher`
+
+### Audio Transcription
+
 ```http
 POST /transcribe
 Content-Type: multipart/form-data
-audio: <file.webm>
+audio: your_file.webm
 ```
 
+Returns transcribed text with language detection.
+
 ### Quick Actions
+
 ```http
 POST /chat/quick
 {
-  "action": "summarize",  // summarize|translate|explain|code
-  "text": "Your text here"
+  "action": "summarize",
+  "text": "Long text to process..."
 }
 ```
 
-### Other Endpoints
-- `GET /health` - Server status
-- `POST /history/clear` - Clear session history
-- `POST /maintenance/cleanup` - Clear all sessions
+Supported actions: `summarize`, `translate`, `explain`, `code`
 
-## 💡 Usage Example
+### Utility Endpoints
+
+- `GET /health` - Server status check
+- `POST /history/clear` - Clear session history
+- `POST /maintenance/cleanup` - Remove all sessions
+
+## Usage Example
+
+JavaScript client implementation:
 
 ```javascript
-// Streaming chat
 const response = await fetch('http://localhost:5000/chat/stream', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    message: 'Explain AI',
+    message: 'Explain machine learning',
     session_id: 'user123',
     personality: 'teacher'
   })
@@ -96,29 +98,34 @@ while (true) {
   if (done) break;
   
   const chunk = decoder.decode(value);
-  // Process SSE data
+  // Process streamed response
 }
 ```
 
-## ⚙️ Configuration
+## Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GROQ_API_KEY` | Required | Your Groq API key |
-| `PORT` | 5000 | Server port |
+Environment variables in `.env`:
 
-**Whisper Models:** `tiny`, `base` (default), `small`, `medium`, `large`
+- `GROQ_API_KEY` - Required for AI chat functionality
+- `PORT` - Server port (default: 5000)
 
-## 🛠️ Tech Stack
+Whisper model defaults to `base`. Change in `server.py` for different accuracy/speed tradeoffs:
+- `tiny` - Fastest, lower accuracy
+- `base` - Balanced (default)
+- `small` - Better accuracy
+- `large` - Highest accuracy, slower
+
+## Technical Details
+
+- Conversation history stored in memory (clears on restart)
+- Session limit: 10 messages per conversation
+- Temporary audio files auto-deleted after transcription
+- Automatic language detection for audio input
+- CUDA acceleration when compatible GPU detected
+
+## Stack
 
 - **Backend:** Flask, Python 3.8+
-- **AI:** Groq (Llama 3.1), OpenAI Whisper
-- **ML:** PyTorch (CUDA support)
-
-## 📝 Notes
-
-- Conversations stored in memory (cleared on restart)
-- Max 10 messages per session
-- Audio files auto-cleanup
-- Auto language detection
-
+- **AI/LLM:** Groq (Llama 3.1)
+- **Speech:** OpenAI Whisper
+- **ML Framework:** PyTorch

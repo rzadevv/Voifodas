@@ -1,13 +1,13 @@
 import os
 import logging
+import json
 from flask import Flask, request, Response, stream_with_context, jsonify
 from flask_cors import CORS
 from groq import Groq
 from dotenv import load_dotenv
-import json
+from tempfile import NamedTemporaryFile
 import whisper
 import torch
-from tempfile import NamedTemporaryFile
 
 # ============================================
 # LOGGING CONFIGURATION
@@ -50,6 +50,9 @@ except Exception as e:
 # ============================================
 # WHISPER MODEL INITIALIZATION (NEW)
 # ============================================
+whisper_model = None  # Initialize as None
+DEVICE = "cpu"  # Default device
+
 try:
     # Check if CUDA is available for GPU acceleration
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -68,6 +71,7 @@ except Exception as e:
     logger.error(f"❌ Failed to load Whisper model: {e}")
     logger.warning("⚠️ Speech-to-text features will be unavailable")
     whisper_model = None
+    DEVICE = "N/A"
 
 # ============================================
 # CONVERSATION HISTORY
