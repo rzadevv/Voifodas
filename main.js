@@ -8,7 +8,7 @@ let isVisible = false;
 
 function createWindow() {
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-    
+
     mainWindow = new BrowserWindow({
         width: 450,
         height: 700,
@@ -32,10 +32,10 @@ function createWindow() {
             offscreen: false
         }
     });
-    
+
     mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
-    
-    // remove any white borders that sometimes appear
+
+    // fix white borders
     mainWindow.webContents.on('did-finish-load', () => {
         mainWindow.webContents.insertCSS(`
             body {
@@ -46,37 +46,34 @@ function createWindow() {
             }
         `);
     });
-    
-    // mac stuff
+
+    // mac specific
     if (process.platform === 'darwin') {
         mainWindow.setWindowLevel('screen-saver');
-        
         try {
             mainWindow.setContentProtection(true);
         } catch (e) {
             console.log('Content protection not available');
         }
     }
-    
-    // windows stuff
+
+    // windows specific - hide from screen recordings
     if (process.platform === 'win32') {
         mainWindow.setSkipTaskbar(true);
-        
         try {
-            // makes window invisible in screen recordings
             mainWindow.setContentProtection(true);
         } catch (e) {
             console.log('Content protection not available');
         }
-        
+
         mainWindow.once('ready-to-show', () => {
             if (mainWindow.setContentProtection) {
                 mainWindow.setContentProtection(true);
             }
         });
     }
-    
-    // auto-hide when clicking away
+
+    // hide when clicking away
     mainWindow.on('blur', () => {
         const settings = store.get('settings', {});
         if (settings.hideOnBlur !== false) {
@@ -87,7 +84,7 @@ function createWindow() {
     mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
         console.error('Failed to load:', errorCode, errorDescription);
     });
-    
+
     mainWindow.webContents.on('crashed', () => {
         console.error('Window crashed');
     });
@@ -118,22 +115,22 @@ function toggleWindow() {
 
 app.whenReady().then(() => {
     createWindow();
-    
+
     // ctrl+space to toggle
     const ret = globalShortcut.register('CommandOrControl+Space', () => {
         toggleWindow();
     });
-    
+
     if (!ret) {
         console.log('Global shortcut registration failed');
     }
-    
-    // alt+a also works
+
+    // alt+a as backup
     globalShortcut.register('Alt+A', () => {
         toggleWindow();
     });
-    
-    // quick actions
+
+    // quick actions hotkey
     globalShortcut.register('CommandOrControl+Shift+Q', () => {
         if (mainWindow) {
             showWindow();
@@ -152,7 +149,7 @@ app.on('will-quit', () => {
     globalShortcut.unregisterAll();
 });
 
-// handle messages from renderer
+// ipc handlers
 ipcMain.handle('get-clipboard', () => {
     return clipboard.readText();
 });

@@ -9,19 +9,14 @@ from tempfile import NamedTemporaryFile
 import whisper
 import torch
 
-# ============================================
-# LOGGING CONFIGURATION
-# ============================================
+# logging setup
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ============================================
-# ENVIRONMENT SETUP
-# ============================================
+# load env vars
 load_dotenv()
 
-# Get Groq API key
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
     logger.error("GROQ_API_KEY not set")
@@ -31,15 +26,11 @@ if GROQ_API_KEY == "your_groq_api_key_here":
     logger.error("Replace placeholder API key")
     raise ValueError("Invalid API key. Update your .env file.")
 
-# ============================================
-# FLASK APP INITIALIZATION
-# ============================================
+# flask app
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": ["http://localhost:*", "app://*"]}})
 
-# ============================================
-# GROQ CLIENT INITIALIZATION
-# ============================================
+# groq client
 try:
     client = Groq(api_key=GROQ_API_KEY)
     logger.info("✅ Groq client initialized successfully")
@@ -47,25 +38,20 @@ except Exception as e:
     logger.error(f"Failed to init Groq: {e}")
     raise
 
-# ============================================
-# WHISPER MODEL INITIALIZATION (NEW)
-# ============================================
-whisper_model = None  # Initialize as None
-DEVICE = "cpu"  # Default device
+# whisper model for speech-to-text
+whisper_model = None
+DEVICE = "cpu"
 
 try:
-    # Check if CUDA is available for GPU acceleration
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info(f"🔧 Loading Whisper model on device: {DEVICE}")
-    
-    # Load the Whisper base model
     whisper_model = whisper.load_model("base", device=DEVICE)
     logger.info("✅ Whisper model loaded successfully")
     
     if DEVICE == "cuda":
-        logger.info("🚀 GPU acceleration enabled for faster transcription")
+        logger.info("🚀 GPU acceleration enabled")
     else:
-        logger.info("💻 Using CPU for transcription (offline mode)")
+        logger.info("💻 Using CPU for transcription")
         
 except Exception as e:
     logger.error(f"❌ Failed to load Whisper model: {e}")
@@ -73,17 +59,13 @@ except Exception as e:
     whisper_model = None
     DEVICE = "N/A"
 
-# ============================================
-# CONVERSATION HISTORY
-# ============================================
+# store conversations in memory (resets on restart)
 conversations = {}
 
-# ============================================
-# HEALTH CHECK ENDPOINT
-# ============================================
+
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint to verify server is running"""
+    """basic health check"""
     whisper_status = "available" if whisper_model else "unavailable"
     return {
         "status": "ok", 
@@ -92,68 +74,48 @@ def health_check():
         "device": DEVICE if whisper_model else "N/A"
     }
 
-# ============================================
-# SPEECH-TO-TEXT ENDPOINT (NEW)
-# ============================================
+
 @app.route('/transcribe', methods=['POST'])
 def transcribe_audio():
-    """
-    Transcribe audio file using Whisper model
-    
-    Expects:
-        - 'audio' file in multipart/form-data
-        - Audio should be in WebM format (from browser MediaRecorder)
-    
-    Returns:
-        - JSON with transcribed text
-        - Error message if transcription fails
-    """
+    """transcribe audio using whisper"""
     try:
-        # Check if Whisper model is loaded
         if not whisper_model:
             logger.error("Whisper model not available")
             return jsonify({
                 "error": "Speech-to-text service unavailable. Please check server logs."
             }), 503
         
-        # Check if audio file is in the request
         if 'audio' not in request.files:
             logger.warning("No audio file in request")
             return jsonify({"error": "No audio file provided"}), 400
         
         audio_file = request.files['audio']
         
-        # Check if file is empty
         if audio_file.filename == '':
             logger.warning("Empty audio filename")
             return jsonify({"error": "No audio file selected"}), 400
         
         logger.info(f"📝 Transcribing audio file: {audio_file.filename}")
         
-        # Create a temporary file to save the audio
+        # save to temp file
         with NamedTemporaryFile(delete=False, suffix='.webm') as temp_audio:
             audio_file.save(temp_audio.name)
             temp_path = temp_audio.name
         
         try:
-            # Transcribe the audio using Whisper
             logger.info("🎤 Starting transcription...")
             result = whisper_model.transcribe(
                 temp_path,
-                fp16=False,  # Disable FP16 for CPU compatibility
-                language=None  # Auto-detect language
+                fp16=False,
+                language=None  # auto-detect
             )
             
-            # Extract transcribed text
             transcribed_text = result['text'].strip()
-            
-            # Get detected language
             detected_language = result.get('language', 'unknown')
             
             logger.info(f"✅ Transcription successful: '{transcribed_text[:50]}...'")
             logger.info(f"🌍 Detected language: {detected_language}")
             
-            # Return transcription result
             return jsonify({
                 "text": transcribed_text,
                 "language": detected_language,
@@ -161,7 +123,7 @@ def transcribe_audio():
             }), 200
             
         finally:
-            # Clean up temporary file
+            # cleanup temp file
             try:
                 os.unlink(temp_path)
                 logger.debug(f"🗑️ Cleaned up temporary file: {temp_path}")
@@ -175,12 +137,10 @@ def transcribe_audio():
             "status": "error"
         }), 500
 
-# ============================================
-# STREAMING CHAT ENDPOINT
-# ============================================
+
 @app.route('/chat/stream', methods=['POST'])
 def chat_stream():
-    """Stream chat responses from Groq API"""
+    """stream chat responses from groq"""
     data = request.json
     user_message = data.get('message', '')
     session_id = data.get('session_id', 'default')
@@ -192,21 +152,20 @@ def chat_stream():
             mimetype='text/event-stream'
         )
 
-    # Initialize conversation history
+    # init conversation history for this session
     if session_id not in conversations:
         conversations[session_id] = []
 
-    # Add user message to history
     conversations[session_id].append({
         "role": "user",
         "content": user_message
     })
 
-    # Keep only last 10 messages
+    # keep only last 10 messages
     if len(conversations[session_id]) > 10:
         conversations[session_id] = conversations[session_id][-10:]
 
-    # System prompts for different personalities
+    # different personalities
     system_prompts = {
         'concise': "You are a helpful AI assistant. Be concise and direct.",
         'casual': "You are a friendly AI assistant. Be casual and conversational.",
@@ -237,7 +196,7 @@ def chat_stream():
                     full_response += content
                     yield f"data: {json.dumps({'content': content})}\n\n"
 
-            # Save assistant response to history
+            # save response to history
             conversations[session_id].append({
                 "role": "assistant",
                 "content": full_response
@@ -258,12 +217,10 @@ def chat_stream():
         }
     )
 
-# ============================================
-# QUICK ACTION ENDPOINT
-# ============================================
+
 @app.route('/chat/quick', methods=['POST'])
 def quick_action():
-    """Handle quick actions on clipboard text"""
+    """handle quick actions on clipboard text"""
     data = request.json
     action = data.get('action', 'summarize')
     text = data.get('text', '')
@@ -295,12 +252,10 @@ def quick_action():
         logger.error(f"Quick action error: {str(e)}")
         return {"error": str(e)}, 500
 
-# ============================================
-# HISTORY MANAGEMENT ENDPOINTS
-# ============================================
+
 @app.route('/history/clear', methods=['POST'])
 def clear_history():
-    """Clear conversation history for a session"""
+    """clear conversation history for a session"""
     data = request.json
     session_id = data.get('session_id', 'default')
 
@@ -310,17 +265,16 @@ def clear_history():
 
     return {"status": "cleared"}
 
+
 @app.route('/maintenance/cleanup', methods=['POST'])
 def cleanup_sessions():
-    """Clean up all conversation sessions"""
+    """wipe all sessions"""
     count = len(conversations)
     conversations.clear()
     logger.info(f"Cleaned up {count} sessions")
     return {"status": "cleaned", "count": count}
 
-# ============================================
-# SERVER STARTUP
-# ============================================
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     logger.info(f"🚀 Starting Voifodas server on port {port}")
