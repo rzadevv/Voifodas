@@ -7,5 +7,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSettings: () => ipcRenderer.invoke('get-settings'),
     saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
     getActiveWindow: () => ipcRenderer.invoke('get-active-window'),
-    onQuickActionMode: (callback) => ipcRenderer.on('quick-action-mode', callback)
+    captureScreen: () => ipcRenderer.invoke('capture-screen'),
+    onQuickActionMode: (callback) => ipcRenderer.on('quick-action-mode', callback),
+    onCaptureScreenMode: (callback) => ipcRenderer.on('capture-screen-mode', callback),
+    onListeningModeToggle: (callback) => ipcRenderer.on('listening-mode-toggle', callback)
 });

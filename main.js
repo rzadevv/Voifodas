@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, desktopCapturer, session } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
 
@@ -10,9 +10,9 @@ function createWindow() {
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
     mainWindow = new BrowserWindow({
-        width: 450,
-        height: 700,
-        minWidth: 400,
+        width: 380,
+        height: 600,
+        minWidth: 350,
         minHeight: 500,
         x: width - 520,
         y: 20,
@@ -35,7 +35,7 @@ function createWindow() {
 
     mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
 
-    // fix white borders
+
     mainWindow.webContents.on('did-finish-load', () => {
         mainWindow.webContents.insertCSS(`
             body {
@@ -47,7 +47,7 @@ function createWindow() {
         `);
     });
 
-    // mac specific
+
     if (process.platform === 'darwin') {
         mainWindow.setWindowLevel('screen-saver');
         try {
@@ -57,7 +57,7 @@ function createWindow() {
         }
     }
 
-    // windows specific - hide from screen recordings
+    // windows
     if (process.platform === 'win32') {
         mainWindow.setSkipTaskbar(true);
         try {
@@ -73,7 +73,7 @@ function createWindow() {
         });
     }
 
-    // hide when clicking away
+
     mainWindow.on('blur', () => {
         const settings = store.get('settings', {});
         if (settings.hideOnBlur !== false) {
@@ -137,6 +137,36 @@ app.whenReady().then(() => {
             mainWindow.webContents.send('quick-action-mode');
         }
     });
+
+    // screen capture hotkey
+    globalShortcut.register('CommandOrControl+Shift+S', () => {
+        if (mainWindow) {
+            showWindow();
+            mainWindow.webContents.send('capture-screen-mode');
+        }
+    });
+
+    // listening mode hotkey (system audio capture)
+    globalShortcut.register('CommandOrControl+Shift+L', () => {
+        if (mainWindow) {
+            showWindow();
+            mainWindow.webContents.send('listening-mode-toggle');
+        }
+    });
+
+    // handle display media requests for system audio loopback
+    session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+        desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
+            if (sources.length > 0) {
+                callback({ video: sources[0], audio: 'loopback' });
+            } else {
+                callback({ video: null, audio: null });
+            }
+        }).catch((error) => {
+            console.error('Display media error:', error);
+            callback({ video: null, audio: null });
+        });
+    });
 });
 
 app.on('window-all-closed', () => {
@@ -180,4 +210,46 @@ ipcMain.handle('save-settings', (event, settings) => {
 
 ipcMain.handle('get-active-window', async () => {
     return { app: 'Unknown', title: 'Active Window' };
+});
+
+// screen capture handler
+ipcMain.handle('capture-screen', async () => {
+    try {
+        // hide our window temporarily to avoid capturing it
+        const wasVisible = isVisible;
+        if (wasVisible && mainWindow) {
+            mainWindow.hide();
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        const sources = await desktopCapturer.getSources({
+            types: ['screen'],
+            thumbnailSize: { width: 1920, height: 1080 }
+        });
+
+        // show window again
+        if (wasVisible && mainWindow) {
+            mainWindow.show();
+        }
+
+        if (sources.length === 0) {
+            return { error: 'No screen sources found' };
+        }
+
+        // get primary screen
+        const primarySource = sources[0];
+        const thumbnail = primarySource.thumbnail;
+
+        // convert to base64
+        const dataUrl = thumbnail.toDataURL();
+
+        return {
+            success: true,
+            image: dataUrl,
+            name: primarySource.name
+        };
+    } catch (error) {
+        console.error('Screen capture failed:', error);
+        return { error: error.message };
+    }
 });

@@ -1,131 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voifodas</title>
+    <title>Ghost</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-    <div class="app-container">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo">
-                <div class="logo-icon">👻</div>
-                <div class="logo-text">Voifodas</div>
-            </div>
-            <div class="header-controls">
-                <button class="control-btn" id="clearBtn" title="Clear chat">🗑️</button>
-                <button class="control-btn" id="settingsBtn" title="Settings">⚙️</button>
-                <button class="control-btn close-btn" id="closeBtn" title="Close">✕</button>
-            </div>
-        </div>
 
-        <!-- Chat Wrapper -->
-        <div class="chat-wrapper">
-            <div class="chat-messages" id="chatContainer">
-                <!-- Welcome Message -->
-                <div class="welcome-message">
-                    <div class="welcome-icon">👻</div>
-                    <h2>Voifodas</h2>
-                    <p>Your invisible AI assistant</p>
-                    <div class="shortcuts">
-                        <div class="shortcut-item">
-                            <kbd>Ctrl</kbd> + <kbd>Space</kbd> Toggle window
-                        </div>
-                        <div class="shortcut-item">
-                            <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd> Quick actions
-                        </div>
-                    </div>
+<body>
+    <div class="cluely-container" id="appContainer">
+        <!-- Response Area (single response, not chat) -->
+        <div class="response-area" id="responseArea">
+            <div class="response-content" id="responseContent">
+                <div class="idle-state" id="idleState">
+                    <span class="idle-icon">👻</span>
+                    <span class="idle-text">Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to ask</span>
                 </div>
             </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="quick-actions hidden" id="quickActions">
-            <button class="quick-action-btn" data-action="summarize">
-                <span class="action-icon">📝</span>
-                Summarize
-            </button>
-            <button class="quick-action-btn" data-action="translate">
-                <span class="action-icon">🌐</span>
-                Translate
-            </button>
-            <button class="quick-action-btn" data-action="explain">
-                <span class="action-icon">💡</span>
-                Explain
-            </button>
-            <button class="quick-action-btn" data-action="code">
-                <span class="action-icon">💻</span>
-                Code
-            </button>
-        </div>
-
-        <!-- Input Container -->
-        <div class="input-container">
-            <div class="input-box">
-                <!-- NEW: Microphone Button -->
-                <button class="mic-btn" id="micBtn" title="Start voice input">
-                    <span class="mic-icon">🎤</span>
-                </button>
-                
-                <textarea 
-                    id="messageInput" 
-                    placeholder="Ask me anything... (or use voice input)"
-                    rows="1"
-                ></textarea>
-                
-                <button class="send-btn" id="sendBtn" title="Send message">
-                    ➤
-                </button>
+        <!-- Status Bar -->
+        <div class="status-bar" id="statusBar">
+            <div class="status-left">
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span class="status-text" id="statusText">Ready</span>
+            </div>
+            <div class="status-right">
+                <button class="mini-btn" id="copyBtn" title="Copy">📋</button>
+                <button class="mini-btn" id="listenBtn" title="Listen (Ctrl+Shift+L)">🎧</button>
+                <button class="mini-btn" id="captureBtn" title="Capture (Ctrl+Shift+S)">◎</button>
+                <button class="mini-btn" id="settingsBtn" title="Settings">⚙️</button>
             </div>
         </div>
+
+        <!-- Command Bar -->
+        <div class="command-bar">
+            <input type="text" id="commandInput" placeholder="Ask anything... (Ctrl+Enter)" autocomplete="off" />
+        </div>
+
+        <!-- Drag Handle (invisible) -->
+        <div class="drag-handle" id="dragHandle"></div>
 
         <!-- Settings Panel -->
-        <div class="settings-panel hidden" id="settingsPanel">
-            <div class="settings-header">
-                <h3>Settings</h3>
-                <button class="control-btn" id="closeSettingsBtn">✕</button>
-            </div>
-            <div class="settings-content">
-                <div class="setting-item">
-                    <label>
-                        Personality
-                    </label>
-                    <select id="personalitySelect">
-                        <option value="concise">Concise</option>
-                        <option value="casual">Casual</option>
-                        <option value="formal">Formal</option>
-                        <option value="teacher">Teacher</option>
+        <div class="settings-overlay hidden" id="settingsOverlay">
+            <div class="settings-box">
+                <div class="settings-row">
+                    <span>Playbook</span>
+                    <select id="playbookSelect">
+                        <option value="general">💬 General</option>
+                        <option value="interview">🎯 Interview</option>
+                        <option value="sales">💼 Sales</option>
+                        <option value="meeting">📋 Meeting</option>
+                        <option value="coding">💻 Coding</option>
                     </select>
                 </div>
-
-                <div class="setting-item">
-                    <label>
-                        Opacity
-                        <span class="setting-value" id="opacityValue">95%</span>
-                    </label>
-                    <input 
-                        type="range" 
-                        id="opacitySlider" 
-                        min="50" 
-                        max="100" 
-                        value="95"
-                    >
-                </div>
-
-                <div class="setting-item checkbox-item">
-                    <input 
-                        type="checkbox" 
-                        id="hideOnBlurCheck" 
-                        checked
-                    >
-                    <label for="hideOnBlurCheck">Auto-hide on focus loss</label>
-                </div>
+                <button class="settings-close" id="closeSettings">Done</button>
             </div>
         </div>
     </div>
 
     <script src="renderer.js"></script>
 </body>
+
 </html>

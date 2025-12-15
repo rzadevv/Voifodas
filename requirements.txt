@@ -13,3 +13,10 @@ torchaudio>=2.0.0
 # Windows: choco install ffmpeg
 # macOS: brew install ffmpeg  
 # Linux: sudo apt install ffmpeg
+
+# OCR dependencies (NEW)
+pytesseract>=0.3.10
+Pillow>=10.0.0
+
+# Note: Tesseract-OCR must be installed as system dependency
+# Windows: choco install tesseract
