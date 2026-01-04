@@ -5,15 +5,18 @@ let sessionId = Date.now().toString();
 let currentSettings = {};
 let isStreaming = false;
 
+// mic stuff
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
 let audioStream = null;
 
+// context from screen/audio
 let lastScreenContext = '';
 let lastTranscriptContext = '';
 let contextTimestamp = null;
 
+// playbooks
 let activePlaybook = 'general';
 const PLAYBOOKS = {
     general: {
@@ -60,6 +63,7 @@ const PLAYBOOKS = {
     }
 };
 
+// auto suggest timers
 let autoAnalyzeInterval = null;
 let lastAnalyzedContent = '';
 let lastSuggestionTime = 0;
@@ -67,6 +71,7 @@ const AUTO_ANALYZE_DELAY = 15000;
 const MIN_CONTENT_LENGTH = 100;
 
 
+// check if server is up
 async function testConnection() {
     try {
         const response = await fetch(`${API_URL}/health`);
@@ -91,6 +96,7 @@ async function testConnection() {
 }
 
 
+// runs when page loads
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('📄 DOM loaded');
 
@@ -106,6 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 
+// wire up all the buttons
 function setupEventListeners() {
     const commandInput = document.getElementById('commandInput');
     if (commandInput) {
@@ -146,6 +153,7 @@ function setupEventListeners() {
     setupAutoFade();
 }
 
+// send message to ai
 async function sendCluelyMessage() {
     const input = document.getElementById('commandInput');
     const message = input.value.trim();
@@ -201,6 +209,7 @@ async function sendCluelyMessage() {
     }
 }
 
+// show ai response
 function showResponse(text) {
     const responseContent = document.getElementById('responseContent');
     if (!responseContent) return;
@@ -209,6 +218,7 @@ function showResponse(text) {
     resetFadeTimer();
 }
 
+// show loading dots
 function showLoading() {
     const responseContent = document.getElementById('responseContent');
     if (!responseContent) return;
@@ -222,6 +232,7 @@ function showLoading() {
     `;
 }
 
+// copy response to clipboard
 function copyResponse() {
     const response = document.querySelector('.ai-response');
     if (response && !response.classList.contains('loading')) {
@@ -241,6 +252,7 @@ function updateStatus(text) {
     if (statusText) statusText.textContent = text;
 }
 
+// fade out when idle
 let fadeTimer = null;
 function setupAutoFade() {
     resetFadeTimer();
@@ -264,6 +276,7 @@ function escapeHtml(text) {
     }[m]));
 }
 
+// voice recording
 async function toggleRecording() {
     if (isRecording) {
         stopRecording();
@@ -359,6 +372,7 @@ function updateRecordingUI(recording) {
     }
 }
 
+// send audio to server for transcription
 async function processRecording() {
     try {
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
@@ -424,6 +438,7 @@ function showTranscriptionSuccess() {
 }
 
 
+// screen capture
 let isCapturing = false;
 
 async function captureAndAnalyze() {
@@ -508,6 +523,7 @@ async function captureAndAnalyze() {
 }
 
 
+// system audio listening
 let isListening = false;
 let systemAudioStream = null;
 let systemMediaRecorder = null;
@@ -539,6 +555,7 @@ async function startListening() {
 
         console.log('✅ System audio stream obtained:', audioTracks[0].label);
 
+        // dont need video, just audio
         systemAudioStream.getVideoTracks().forEach(track => track.stop());
 
         const audioOnlyStream = new MediaStream(audioTracks);
@@ -567,6 +584,7 @@ async function startListening() {
             stopListening();
         };
 
+        // record in 3 sec chunks
         systemMediaRecorder.start(3000);
         isListening = true;
         updateListeningUI(true);
@@ -627,6 +645,7 @@ function stopListening() {
     console.log('✅ Listening mode stopped');
 }
 
+// process audio chunks
 async function processListeningChunks() {
     if (listeningChunks.length === 0) return;
 
@@ -676,6 +695,7 @@ async function processListeningChunks() {
     }
 }
 
+// live transcript ui
 function updateLiveTranscriptPanel(newText) {
     let panel = document.getElementById('liveTranscriptPanel');
 
@@ -704,6 +724,7 @@ function updateLiveTranscriptPanel(newText) {
         span.textContent = newText + ' ';
         content.appendChild(span);
 
+        // keep it short
         while (content.textContent.length > 500) {
             if (content.firstChild) {
                 content.removeChild(content.firstChild);
@@ -740,6 +761,7 @@ function updateListeningUI(listening) {
 }
 
 
+// analyze collected context
 async function analyzeContext(userQuestion = '') {
     if (!lastScreenContext && !lastTranscriptContext) {
         addMessage('assistant', '⚠️ **No context available**\n\nCapture a screen (Ctrl+Shift+S) or start listening (Ctrl+Shift+L) first to build context.');
@@ -806,6 +828,7 @@ function clearContext() {
 }
 
 
+// playbook picker
 function togglePlaybookSelector() {
     let panel = document.getElementById('playbookPanel');
 
@@ -878,6 +901,7 @@ function getActivePlaybook() {
 }
 
 
+// auto suggestions
 function startAutoAnalyze() {
     if (autoAnalyzeInterval) return;
 
@@ -947,6 +971,7 @@ async function runAutoAnalysis() {
     }
 }
 
+// suggestion popup
 function showSuggestionCard(data) {
     hideSuggestionCard();
 
@@ -977,6 +1002,7 @@ function showSuggestionCard(data) {
         appContainer.insertBefore(card, header.nextSibling);
     }
 
+    // auto hide after 30s
     setTimeout(() => {
         const existing = document.getElementById('suggestionCard');
         if (existing) existing.classList.add('fading');
@@ -1004,6 +1030,7 @@ function copySuggestion() {
 }
 
 
+// chat functions
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
@@ -1110,6 +1137,7 @@ async function handleQuickAction(action) {
 }
 
 
+// ui helpers
 function addMessage(sender, text) {
     const container = document.getElementById('chatContainer');
 
@@ -1175,6 +1203,7 @@ async function clearChat() {
 }
 
 
+// settings
 function toggleSettings() {
     const panel = document.getElementById('settingsPanel');
     panel.classList.toggle('hidden');
@@ -1206,6 +1235,7 @@ function applySettings() {
     }
 }
 
+// save on change
 document.addEventListener('change', (e) => {
     if (e.target.closest('.settings-content')) {
         saveSettings();
