@@ -5,18 +5,15 @@ let sessionId = Date.now().toString();
 let currentSettings = {};
 let isStreaming = false;
 
-// recording
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
 let audioStream = null;
 
-// context
 let lastScreenContext = '';
 let lastTranscriptContext = '';
 let contextTimestamp = null;
 
-// playbooks
 let activePlaybook = 'general';
 const PLAYBOOKS = {
     general: {
@@ -63,7 +60,6 @@ const PLAYBOOKS = {
     }
 };
 
-// passive mode
 let autoAnalyzeInterval = null;
 let lastAnalyzedContent = '';
 let lastSuggestionTime = 0;
@@ -86,7 +82,6 @@ async function testConnection() {
         setTimeout(() => {
             const welcome = document.querySelector('.welcome-message');
             if (welcome && document.querySelectorAll('.message').length === 0) {
-                // keep welcome if no chat yet
             }
         }, 1000);
     } catch (error) {
@@ -112,7 +107,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 function setupEventListeners() {
-    // Command bar - Cluely style (Ctrl+Enter to send)
     const commandInput = document.getElementById('commandInput');
     if (commandInput) {
         commandInput.addEventListener('keydown', (e) => {
@@ -123,26 +117,21 @@ function setupEventListeners() {
         });
     }
 
-    // Copy button
     const copyBtn = document.getElementById('copyBtn');
     if (copyBtn) copyBtn.addEventListener('click', copyResponse);
 
-    // Listen button
     const listenBtn = document.getElementById('listenBtn');
     if (listenBtn) listenBtn.addEventListener('click', toggleListeningMode);
 
-    // Capture button
     const captureBtn = document.getElementById('captureBtn');
     if (captureBtn) captureBtn.addEventListener('click', captureAndAnalyze);
 
-    // Settings
     const settingsBtn = document.getElementById('settingsBtn');
     if (settingsBtn) settingsBtn.addEventListener('click', toggleCluelySettings);
 
     const closeSettings = document.getElementById('closeSettings');
     if (closeSettings) closeSettings.addEventListener('click', toggleCluelySettings);
 
-    // Playbook select
     const playbookSelect = document.getElementById('playbookSelect');
     if (playbookSelect) {
         playbookSelect.addEventListener('change', (e) => {
@@ -151,15 +140,12 @@ function setupEventListeners() {
         });
     }
 
-    // Keyboard shortcuts
     window.electronAPI.onCaptureScreenMode(() => captureAndAnalyze());
     window.electronAPI.onListeningModeToggle(() => toggleListeningMode());
 
-    // Auto-fade after idle
     setupAutoFade();
 }
 
-// Cluely-style send (single response mode)
 async function sendCluelyMessage() {
     const input = document.getElementById('commandInput');
     const message = input.value.trim();
@@ -215,7 +201,6 @@ async function sendCluelyMessage() {
     }
 }
 
-// Show AI response (replaces previous, no chat history)
 function showResponse(text) {
     const responseContent = document.getElementById('responseContent');
     if (!responseContent) return;
@@ -224,7 +209,6 @@ function showResponse(text) {
     resetFadeTimer();
 }
 
-// Show loading state
 function showLoading() {
     const responseContent = document.getElementById('responseContent');
     if (!responseContent) return;
@@ -238,7 +222,6 @@ function showLoading() {
     `;
 }
 
-// Copy current response
 function copyResponse() {
     const response = document.querySelector('.ai-response');
     if (response && !response.classList.contains('loading')) {
@@ -248,19 +231,16 @@ function copyResponse() {
     }
 }
 
-// Toggle settings overlay
 function toggleCluelySettings() {
     const overlay = document.getElementById('settingsOverlay');
     if (overlay) overlay.classList.toggle('hidden');
 }
 
-// Update status text
 function updateStatus(text) {
     const statusText = document.getElementById('statusText');
     if (statusText) statusText.textContent = text;
 }
 
-// Auto-fade timer
 let fadeTimer = null;
 function setupAutoFade() {
     resetFadeTimer();
@@ -275,17 +255,14 @@ function resetFadeTimer() {
     if (fadeTimer) clearTimeout(fadeTimer);
     fadeTimer = setTimeout(() => {
         if (container && !isStreaming) container.classList.add('faded');
-    }, 15000); // fade after 15s idle
+    }, 15000);
 }
 
-// Escape HTML
 function escapeHtml(text) {
     return text.replace(/[&<>"']/g, m => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[m]));
 }
-
-// --- Voice Recording ---
 
 async function toggleRecording() {
     if (isRecording) {
@@ -447,8 +424,6 @@ function showTranscriptionSuccess() {
 }
 
 
-// --- Screen Capture & OCR ---
-
 let isCapturing = false;
 
 async function captureAndAnalyze() {
@@ -463,7 +438,6 @@ async function captureAndAnalyze() {
     try {
         console.log('📷 Capturing screen...');
 
-        // capture screen via Electron
         const result = await window.electronAPI.captureScreen();
 
         if (result.error) {
@@ -472,7 +446,6 @@ async function captureAndAnalyze() {
 
         console.log('✅ Screenshot captured:', result.name);
 
-        // remove welcome message
         const welcome = document.querySelector('.welcome-message');
         if (welcome) welcome.remove();
 
@@ -480,7 +453,6 @@ async function captureAndAnalyze() {
         const loadingMsg = addLoadingMessage();
         loadingMsg.querySelector('.message-content').textContent = '🔍 Reading screen content...';
 
-        // send to OCR endpoint
         const response = await fetch(`${API_URL}/ocr`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -502,7 +474,6 @@ async function captureAndAnalyze() {
         console.log('✅ OCR complete:', data);
 
         if (data.text) {
-            // store screen context for combined analysis
             lastScreenContext = data.text;
             contextTimestamp = new Date();
 
@@ -520,7 +491,6 @@ async function captureAndAnalyze() {
             addMessage('assistant', '⚠️ No text detected on screen. Try capturing when text is visible.');
         }
 
-        // show success
         if (captureBtn) {
             captureBtn.classList.add('success');
             setTimeout(() => captureBtn.classList.remove('success'), 1000);
@@ -538,14 +508,12 @@ async function captureAndAnalyze() {
 }
 
 
-// --- System Audio Capture (Listening Mode) ---
-
 let isListening = false;
 let systemAudioStream = null;
 let systemMediaRecorder = null;
 let listeningChunks = [];
 let transcriptionInterval = null;
-let liveTranscript = ''; // accumulates full transcript
+let liveTranscript = '';
 
 async function toggleListeningMode() {
     if (isListening) {
@@ -559,13 +527,11 @@ async function startListening() {
     try {
         console.log('🎧 Starting system audio capture...');
 
-        // request display media with audio (triggers screen picker)
         systemAudioStream = await navigator.mediaDevices.getDisplayMedia({
-            video: true, // required by browser API
-            audio: true  // captures system audio via loopback
+            video: true,
+            audio: true
         });
 
-        // check if audio track exists
         const audioTracks = systemAudioStream.getAudioTracks();
         if (audioTracks.length === 0) {
             throw new Error('No audio track found. Make sure to select a screen with audio enabled.');
@@ -573,13 +539,10 @@ async function startListening() {
 
         console.log('✅ System audio stream obtained:', audioTracks[0].label);
 
-        // stop video track - we only need audio
         systemAudioStream.getVideoTracks().forEach(track => track.stop());
 
-        // create audio-only stream
         const audioOnlyStream = new MediaStream(audioTracks);
 
-        // setup media recorder
         const options = { mimeType: 'audio/webm' };
         if (!MediaRecorder.isTypeSupported(options.mimeType)) {
             systemMediaRecorder = new MediaRecorder(audioOnlyStream);
@@ -604,18 +567,14 @@ async function startListening() {
             stopListening();
         };
 
-        // start recording in 3-second chunks for faster transcription
         systemMediaRecorder.start(3000);
         isListening = true;
         updateListeningUI(true);
 
-        // setup interval to process chunks
         transcriptionInterval = setInterval(processListeningChunks, 3000);
 
-        // start passive AI mode (auto-suggestions)
         startAutoAnalyze();
 
-        // remove welcome and show listening status
         const welcome = document.querySelector('.welcome-message');
         if (welcome) welcome.remove();
 
@@ -671,7 +630,6 @@ function stopListening() {
 async function processListeningChunks() {
     if (listeningChunks.length === 0) return;
 
-    // grab current chunks and clear for next batch
     const chunksToProcess = [...listeningChunks];
     listeningChunks = [];
 
@@ -705,14 +663,11 @@ async function processListeningChunks() {
         if (transcribedText && transcribedText.length > 2) {
             console.log('📝 Transcription:', transcribedText);
 
-            // accumulate in live transcript
             liveTranscript += (liveTranscript ? ' ' : '') + transcribedText;
 
-            // store for combined context analysis
             lastTranscriptContext += (lastTranscriptContext ? ' ' : '') + transcribedText;
             contextTimestamp = new Date();
 
-            // update live transcript panel if visible
             updateLiveTranscriptPanel(transcribedText);
         }
 
@@ -725,7 +680,6 @@ function updateLiveTranscriptPanel(newText) {
     let panel = document.getElementById('liveTranscriptPanel');
 
     if (!panel) {
-        // create panel if it doesn't exist
         panel = document.createElement('div');
         panel.id = 'liveTranscriptPanel';
         panel.className = 'live-transcript-panel';
@@ -737,7 +691,6 @@ function updateLiveTranscriptPanel(newText) {
             <div class="transcript-content" id="transcriptContent"></div>
         `;
 
-        // insert before chat wrapper
         const chatWrapper = document.querySelector('.chat-wrapper');
         if (chatWrapper) {
             chatWrapper.parentNode.insertBefore(panel, chatWrapper);
@@ -746,20 +699,17 @@ function updateLiveTranscriptPanel(newText) {
 
     const content = document.getElementById('transcriptContent');
     if (content) {
-        // add new text with fade-in
         const span = document.createElement('span');
         span.className = 'transcript-new';
         span.textContent = newText + ' ';
         content.appendChild(span);
 
-        // limit to last 500 characters
         while (content.textContent.length > 500) {
             if (content.firstChild) {
                 content.removeChild(content.firstChild);
             }
         }
 
-        // scroll to end
         content.scrollLeft = content.scrollWidth;
     }
 }
@@ -790,8 +740,6 @@ function updateListeningUI(listening) {
 }
 
 
-// --- Context-Aware Analysis ---
-
 async function analyzeContext(userQuestion = '') {
     if (!lastScreenContext && !lastTranscriptContext) {
         addMessage('assistant', '⚠️ **No context available**\n\nCapture a screen (Ctrl+Shift+S) or start listening (Ctrl+Shift+L) first to build context.');
@@ -801,7 +749,6 @@ async function analyzeContext(userQuestion = '') {
     const welcome = document.querySelector('.welcome-message');
     if (welcome) welcome.remove();
 
-    // show what context we have
     const contextInfo = [];
     if (lastScreenContext) contextInfo.push(`📷 Screen: ${lastScreenContext.length} chars`);
     if (lastTranscriptContext) contextInfo.push(`🎧 Audio: ${lastTranscriptContext.length} chars`);
@@ -859,8 +806,6 @@ function clearContext() {
 }
 
 
-// --- Playbook Selector ---
-
 function togglePlaybookSelector() {
     let panel = document.getElementById('playbookPanel');
 
@@ -869,7 +814,6 @@ function togglePlaybookSelector() {
         return;
     }
 
-    // create playbook selector panel
     panel = document.createElement('div');
     panel.id = 'playbookPanel';
     panel.className = 'playbook-panel';
@@ -898,13 +842,11 @@ function togglePlaybookSelector() {
         </div>
     `;
 
-    // insert after header
     const header = document.querySelector('.header');
     if (header) {
         header.parentNode.insertBefore(panel, header.nextSibling);
     }
 
-    // add click handlers
     panel.querySelectorAll('.playbook-item').forEach(btn => {
         btn.addEventListener('click', () => {
             setPlaybook(btn.dataset.playbook);
@@ -919,7 +861,6 @@ function setPlaybook(playbookKey) {
     activePlaybook = playbookKey;
     const pb = PLAYBOOKS[playbookKey];
 
-    // update button icon
     const playbookBtn = document.getElementById('playbookBtn');
     if (playbookBtn) {
         const icon = playbookBtn.querySelector('.playbook-btn-icon');
@@ -927,7 +868,6 @@ function setPlaybook(playbookKey) {
         playbookBtn.title = `Playbook: ${pb.name}`;
     }
 
-    // show notification
     addMessage('assistant', `📋 **Playbook changed to: ${pb.name}**\n\n${pb.description}`);
 
     console.log(`📋 Active playbook: ${pb.name}`);
@@ -937,8 +877,6 @@ function getActivePlaybook() {
     return PLAYBOOKS[activePlaybook];
 }
 
-
-// --- Passive AI Mode (Auto-Suggest) ---
 
 function startAutoAnalyze() {
     if (autoAnalyzeInterval) return;
@@ -960,18 +898,16 @@ function stopAutoAnalyze() {
 }
 
 async function runAutoAnalysis() {
-    // check if we have enough new content
     const currentContent = lastTranscriptContext + lastScreenContext;
 
     if (currentContent.length < MIN_CONTENT_LENGTH) {
-        return; // not enough content
+        return;
     }
 
     if (currentContent === lastAnalyzedContent) {
-        return; // no new content
+        return;
     }
 
-    // debounce - don't suggest too frequently
     const now = Date.now();
     if (now - lastSuggestionTime < AUTO_ANALYZE_DELAY) {
         return;
@@ -1012,7 +948,7 @@ async function runAutoAnalysis() {
 }
 
 function showSuggestionCard(data) {
-    hideSuggestionCard(); // remove existing
+    hideSuggestionCard();
 
     const card = document.createElement('div');
     card.id = 'suggestionCard';
@@ -1035,14 +971,12 @@ function showSuggestionCard(data) {
         </div>
     `;
 
-    // insert after header
     const appContainer = document.querySelector('.app-container');
     const header = document.querySelector('.header');
     if (appContainer && header) {
         appContainer.insertBefore(card, header.nextSibling);
     }
 
-    // auto-dismiss after 30 seconds
     setTimeout(() => {
         const existing = document.getElementById('suggestionCard');
         if (existing) existing.classList.add('fading');
@@ -1069,8 +1003,6 @@ function copySuggestion() {
     }
 }
 
-
-// --- Chat ---
 
 async function sendMessage() {
     const input = document.getElementById('messageInput');
@@ -1178,8 +1110,6 @@ async function handleQuickAction(action) {
 }
 
 
-// --- UI Helpers ---
-
 function addMessage(sender, text) {
     const container = document.getElementById('chatContainer');
 
@@ -1245,8 +1175,6 @@ async function clearChat() {
 }
 
 
-// --- Settings ---
-
 function toggleSettings() {
     const panel = document.getElementById('settingsPanel');
     panel.classList.toggle('hidden');
@@ -1278,7 +1206,6 @@ function applySettings() {
     }
 }
 
-// auto-save settings on change
 document.addEventListener('change', (e) => {
     if (e.target.closest('.settings-content')) {
         saveSettings();
